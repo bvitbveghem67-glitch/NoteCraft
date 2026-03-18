@@ -1,0 +1,8 @@
+{
+  "name": "NoteCraft AI Tutor",
+  "description": "A powerful AI-driven study companion that transforms files and videos into flashcards, presentations, and diagrams.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
