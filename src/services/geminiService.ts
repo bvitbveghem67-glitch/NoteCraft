@@ -2,9 +2,13 @@ import {GoogleGenAI, Type, Modality} from "@google/genai";
 
 let aiInstance: GoogleGenAI | null = null;
 
+const getApiKey = () => {
+  return process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+};
+
 const getAi = () => {
   if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getApiKey();
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is missing. Please add it as a secret named 'GEMINI_API_KEY' in the Settings (gear icon) -> Secrets panel.");
     }
@@ -14,7 +18,7 @@ const getAi = () => {
 };
 
 export const isApiKeyMissing = () => {
-  return !process.env.GEMINI_API_KEY;
+  return !getApiKey();
 };
 
 export const generateStudyMaterial = async (prompt: string, fileData?: { data: string, mimeType: string }) => {
