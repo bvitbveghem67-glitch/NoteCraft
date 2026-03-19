@@ -1,16 +1,25 @@
 import {GoogleGenAI, Type} from "@google/genai";
 
-const getApiKey = () => {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || key === "MY_GEMINI_API_KEY") {
-    throw new Error("Gemini API key is missing. Please add GEMINI_API_KEY to the Secrets panel in AI Studio.");
+let aiInstance: GoogleGenAI | null = null;
+
+const getAi = () => {
+  if (!aiInstance) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key || key === "MY_GEMINI_API_KEY") {
+      throw new Error("Gemini API key is missing. Please add GEMINI_API_KEY_NOTEBOT to the Secrets panel in AI Studio.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey: key });
   }
-  return key;
+  return aiInstance;
 };
 
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
+export const isApiKeyMissing = () => {
+  const key = process.env.GEMINI_API_KEY;
+  return !key || key === "MY_GEMINI_API_KEY";
+};
 
 export const generateStudyMaterial = async (prompt: string, fileData?: { data: string, mimeType: string }) => {
+  const ai = getAi();
   const model = ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: fileData ? [
@@ -60,6 +69,7 @@ export const generateStudyMaterial = async (prompt: string, fileData?: { data: s
 };
 
 export const generateDiagram = async (description: string) => {
+  const ai = getAi();
   const model = ai.models.generateContent({
     model: "gemini-2.5-flash-image",
     contents: `Generate a clear educational diagram or illustration based on this topic: ${description}. Make it look professional and academic.`,
@@ -81,6 +91,7 @@ export const generateDiagram = async (description: string) => {
 };
 
 export const generateVideo = async (prompt: string) => {
+  const ai = getAi();
   let operation = await ai.models.generateVideos({
     model: 'veo-3.1-fast-generate-preview',
     prompt: `An educational animation explaining: ${prompt}. Cinematic, high quality, clear visuals.`,
