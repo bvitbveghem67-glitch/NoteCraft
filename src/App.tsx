@@ -65,9 +65,14 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model', text: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setApiKeyMissing(!process.env.GEMINI_API_KEY);
+  }, []);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -234,6 +239,16 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* API Key Warning */}
+      {apiKeyMissing && (
+        <div className="bg-red-500/20 border-b border-red-500/50 px-6 py-3 text-center text-sm flex items-center justify-center gap-2">
+          <Sparkles className="w-4 h-4 text-red-500" />
+          <span>
+            <strong>API Key Missing:</strong> Please add your Gemini API key as a secret named <code>GEMINI_API_KEY</code> in the <strong>Settings (gear icon) → Secrets</strong> panel.
+          </span>
+        </div>
+      )}
 
       {/* Theme Customizer Overlay */}
       <AnimatePresence>
