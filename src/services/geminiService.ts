@@ -6,7 +6,7 @@ const getAi = () => {
   if (!aiInstance) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is missing. Please set it in your environment.");
+      throw new Error("GEMINI_API_KEY is missing. Please add it as a secret named 'GEMINI_API_KEY' in the Settings (gear icon) -> Secrets panel.");
     }
     aiInstance = new GoogleGenAI({ apiKey });
   }
