@@ -1,17 +1,20 @@
 import {GoogleGenAI, Type, Modality} from "@google/genai";
 
-const HARDCODED_API_KEY = "AIzaSyBS9c2Z65SOrin6GXDoz6CHm0NmD7yUQdY";
 let aiInstance: GoogleGenAI | null = null;
 
 const getAi = () => {
   if (!aiInstance) {
-    aiInstance = new GoogleGenAI({ apiKey: HARDCODED_API_KEY });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is missing. Please set it in your environment.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
 };
 
 export const isApiKeyMissing = () => {
-  return false; // Key is hardcoded
+  return !process.env.GEMINI_API_KEY;
 };
 
 export const generateStudyMaterial = async (prompt: string, fileData?: { data: string, mimeType: string }) => {
