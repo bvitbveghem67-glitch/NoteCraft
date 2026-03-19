@@ -16,9 +16,7 @@ import {
   Sparkles,
   Palette,
   ExternalLink,
-  Loader2,
-  CheckCircle2,
-  AlertCircle
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -26,37 +24,13 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import confetti from 'canvas-confetti';
 
-import { generateStudyMaterial, generateDiagram, generateVideo, isApiKeyMissing } from './services/geminiService';
+import { generateStudyMaterial, generateDiagram, generateVideo } from './services/geminiService';
 import { exportToPDF, exportToPPT } from './services/exportService';
 import { StudyMaterial, ThemeMode, Flashcard, Slide } from './types';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-const ApiKeyWarning = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center bg-[#0a0a0a] text-white font-sans">
-    <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
-      <AlertCircle className="w-10 h-10 text-red-500" />
-    </div>
-    <h1 className="text-3xl font-bold mb-4 tracking-tight">Gemini API Key Required</h1>
-    <p className="text-gray-400 max-w-md mb-8 leading-relaxed">
-      To use NoteCraft, you need to add your Gemini API key to the Secrets panel in AI Studio.
-    </p>
-    <div className="bg-white/5 border border-white/10 p-8 rounded-3xl text-left max-w-lg w-full backdrop-blur-xl">
-      <h3 className="font-bold mb-4 flex items-center gap-2 text-cyan-400">
-        <Settings className="w-4 h-4" /> How to add your key:
-      </h3>
-      <ol className="space-y-4 text-sm text-gray-300 list-decimal list-inside">
-        <li>Get an API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Google AI Studio</a>.</li>
-        <li>In this editor, click the <strong>Settings</strong> (⚙️) icon in the top-right corner.</li>
-        <li>Select <strong>Secrets</strong>.</li>
-        <li>Add a new secret named <code className="bg-white/10 px-1.5 py-0.5 rounded text-cyan-400 font-mono">GEMINI_API_KEY_NOTEBOT</code> and paste your key.</li>
-        <li>The app will automatically refresh once saved.</li>
-      </ol>
-    </div>
-  </div>
-);
 
 // Logo Component (SVG representation of the provided logo)
 const Logo = ({ className }: { className?: string }) => (
@@ -70,10 +44,6 @@ const Logo = ({ className }: { className?: string }) => (
 );
 
 export default function App() {
-  if (isApiKeyMissing()) {
-    return <ApiKeyWarning />;
-  }
-
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [bgColor, setBgColor] = useState('#0a0a0a');
   const [isCustomizing, setIsCustomizing] = useState(false);
