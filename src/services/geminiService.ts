@@ -1,6 +1,14 @@
 import {GoogleGenAI, Type} from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const getApiKey = () => {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key || key === "MY_GEMINI_API_KEY") {
+    throw new Error("Gemini API key is missing. Please add GEMINI_API_KEY to the Secrets panel in AI Studio.");
+  }
+  return key;
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const generateStudyMaterial = async (prompt: string, fileData?: { data: string, mimeType: string }) => {
   const model = ai.models.generateContent({
