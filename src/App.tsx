@@ -16,7 +16,11 @@ import {
   Sparkles,
   Palette,
   ExternalLink,
-  Loader2
+  Loader2,
+  MessageSquare,
+  Volume2,
+  Send,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -24,7 +28,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import confetti from 'canvas-confetti';
 
-import { generateStudyMaterial, generateDiagram, generateVideo } from './services/geminiService';
+import { generateStudyMaterial, generateDiagram, generateImage, generateSpeech, chatWithGemini } from './services/geminiService';
 import { exportToPDF, exportToPPT } from './services/exportService';
 import { StudyMaterial, ThemeMode, Flashcard, Slide } from './types';
 
@@ -57,12 +61,72 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [focus, setFocus] = useState('General Overview');
   const [currentView, setCurrentView] = useState<'home' | 'about'>('home');
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model', text: string }[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  const handleReadAloud = async (text: string) => {
+    setStatus('Preparing audio...');
+    setLoading(true);
+    try {
+      const audioUrl = await generateSpeech(text);
+      if (audioUrl) {
+        const audio = new Audio(audioUrl);
+        audio.play();
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChat = async () => {
+    if (!chatInput.trim() || isChatLoading) return;
+    
+    const newMessages = [...chatMessages, { role: 'user' as const, text: chatInput }];
+    setChatMessages(newMessages);
+    setChatInput('');
+    setIsChatLoading(true);
+
+    try {
+      const response = await chatWithGemini(newMessages);
+      setChatMessages([...newMessages, { role: 'model', text: response || "I'm sorry, I couldn't process that." }]);
+    } catch (error) {
+      console.error(error);
+      setChatMessages([...newMessages, { role: 'model', text: "Error connecting to AI. Please try again." }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!material) return;
+    setLoading(true);
+    setStatus('Generating AI image...');
+    try {
+      const img = await generateImage(material.summary.substring(0, 100));
+      setMaterial({ ...material, diagramUrl: img });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProcess = async () => {
     setLoading(true);
@@ -107,20 +171,6 @@ export default function App() {
     } catch (error) {
       console.error(error);
       setStatus('Error processing content. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateVideo = async () => {
-    if (!material) return;
-    setLoading(true);
-    setStatus('Generating AI video explanation...');
-    try {
-      const video = await generateVideo(material.summary.substring(0, 200));
-      setMaterial({ ...material, videoUrl: video });
-    } catch (error) {
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -361,9 +411,18 @@ export default function App() {
                 {/* Tab Content */}
                 <div className="min-h-[400px]">
                   {activeTab === 'summary' && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="prose prose-invert max-w-none">
-                      <div className="bg-white/5 p-8 rounded-3xl border border-white/10">
-                        <Markdown>{material.summary}</Markdown>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={cn("prose max-w-none", theme === 'dark' ? "prose-invert" : "")}>
+                      <div className="bg-white/5 p-8 rounded-3xl border border-white/10 relative group">
+                        <button 
+                          onClick={() => handleReadAloud(material.summary)}
+                          className="absolute top-4 right-4 p-2 bg-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-cyan-400 hover:text-black"
+                          title="Read Aloud"
+                        >
+                          <Volume2 className="w-4 h-4" />
+                        </button>
+                        <div className={cn(theme === 'dark' ? "text-white" : "text-gray-900")}>
+                          <Markdown>{material.summary}</Markdown>
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -372,14 +431,27 @@ export default function App() {
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-8">
                       <div 
                         onClick={() => setShowAnswer(!showAnswer)}
-                        className="w-full max-w-md h-64 perspective-1000 cursor-pointer"
+                        className="w-full max-w-md h-64 perspective-1000 cursor-pointer relative group"
                       >
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReadAloud(showAnswer ? material.flashcards[flashcardIndex].answer : material.flashcards[flashcardIndex].question);
+                          }}
+                          className="absolute -top-4 -right-4 z-10 p-3 bg-cyan-400 text-black rounded-full shadow-lg hover:scale-110 transition-transform"
+                          title="Read Aloud"
+                        >
+                          <Volume2 className="w-5 h-5" />
+                        </button>
                         <div className={cn(
                           "relative w-full h-full transition-transform duration-500 transform-style-3d",
                           showAnswer ? "rotate-y-180" : ""
                         )}>
                           {/* Front */}
-                          <div className="absolute inset-0 backface-hidden bg-white/10 border border-white/20 rounded-3xl flex items-center justify-center p-8 text-center text-xl font-medium">
+                          <div className={cn(
+                            "absolute inset-0 backface-hidden border border-white/20 rounded-3xl flex items-center justify-center p-8 text-center text-xl font-medium",
+                            theme === 'dark' ? "bg-white/10 text-white" : "bg-white text-gray-900 shadow-xl"
+                          )}>
                             {material.flashcards[flashcardIndex].question}
                           </div>
                           {/* Back */}
@@ -429,32 +501,28 @@ export default function App() {
                       {material.diagramUrl && (
                         <div className="space-y-4">
                           <h3 className="text-xl font-bold flex items-center gap-2">
-                            <ImageIcon className="w-5 h-5 text-cyan-400" /> Concept Diagram
+                            <ImageIcon className="w-5 h-5 text-cyan-400" /> Concept Visual
                           </h3>
                           <div className="rounded-3xl overflow-hidden border border-white/10 bg-black">
-                            <img src={material.diagramUrl} alt="Diagram" className="w-full h-auto" referrerPolicy="no-referrer" />
+                            <img src={material.diagramUrl} alt="Visual" className="w-full h-auto" referrerPolicy="no-referrer" />
                           </div>
                         </div>
                       )}
 
                       <div className="p-8 rounded-3xl bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-white/10 text-center">
-                        <h3 className="text-2xl font-bold mb-4">AI Video Explanation</h3>
-                        <p className="opacity-60 mb-8">Generate a cinematic AI video explaining the core concepts of this material.</p>
+                        <h3 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
+                          <ImageIcon className="w-6 h-6 text-cyan-400" /> Nano Banana Visuals
+                        </h3>
+                        <p className="opacity-60 mb-8">Generate a professional AI illustration explaining the core concepts of this material using our Nano Banana engine.</p>
                         
-                        {material.videoUrl ? (
-                          <video controls className="w-full rounded-2xl shadow-2xl">
-                            <source src={material.videoUrl} type="video/mp4" />
-                          </video>
-                        ) : (
-                          <button 
-                            onClick={handleGenerateVideo}
-                            disabled={loading}
-                            className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-all flex items-center gap-2 mx-auto"
-                          >
-                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Video className="w-5 h-5" />}
-                            Generate Video
-                          </button>
-                        )}
+                        <button 
+                          onClick={handleGenerateImage}
+                          disabled={loading}
+                          className="px-8 py-3 bg-cyan-400 text-black font-bold rounded-full hover:bg-cyan-300 transition-all flex items-center gap-2 mx-auto shadow-lg shadow-cyan-400/20"
+                        >
+                          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span className="text-xl">🍌</span>}
+                          Generate Nano Banana Image
+                        </button>
                       </div>
                     </motion.div>
                   )}
@@ -563,6 +631,88 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Chat Interface */}
+      <div className="fixed bottom-6 right-6 z-[60]">
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className={cn(
+                "w-[350px] md:w-[400px] h-[500px] mb-4 rounded-3xl shadow-2xl border flex flex-col overflow-hidden backdrop-blur-xl",
+                theme === 'dark' ? "bg-black/80 border-white/20" : "bg-white/90 border-gray-200"
+              )}
+            >
+              {/* Chat Header */}
+              <div className="p-4 border-b border-white/10 bg-cyan-400 text-black flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  <span className="font-bold">NoteCraft AI Chat</span>
+                </div>
+                <button onClick={() => setIsChatOpen(false)} className="p-1 hover:bg-black/10 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {chatMessages.length === 0 && (
+                  <div className="text-center py-8 opacity-50">
+                    <p>Ask me anything about your study material!</p>
+                  </div>
+                )}
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={cn(
+                    "max-w-[80%] p-3 rounded-2xl text-sm prose prose-sm",
+                    m.role === 'user' 
+                      ? "ml-auto bg-cyan-400 text-black" 
+                      : (theme === 'dark' ? "bg-white/10 text-white prose-invert" : "bg-gray-100 text-gray-900")
+                  )}>
+                    <Markdown>{m.text}</Markdown>
+                  </div>
+                ))}
+                {isChatLoading && (
+                  <div className="bg-white/10 p-3 rounded-2xl w-12 flex justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Chat Input */}
+              <div className="p-4 border-t border-white/10 flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Type a message..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleChat()}
+                  className={cn(
+                    "flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-cyan-400",
+                    theme === 'dark' ? "text-white" : "text-gray-900"
+                  )}
+                />
+                <button 
+                  onClick={handleChat}
+                  disabled={isChatLoading || !chatInput.trim()}
+                  className="p-2 bg-cyan-400 text-black rounded-xl hover:bg-cyan-300 disabled:opacity-50"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <button 
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className="w-14 h-14 bg-cyan-400 text-black rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform"
+        >
+          {isChatOpen ? <X className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
+        </button>
+      </div>
 
       <style>{`
         .perspective-1000 { perspective: 1000px; }

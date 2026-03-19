@@ -1,21 +1,17 @@
-import {GoogleGenAI, Type} from "@google/genai";
+import {GoogleGenAI, Type, Modality} from "@google/genai";
 
+const HARDCODED_API_KEY = "AIzaSyBS9c2Z65SOrin6GXDoz6CHm0NmD7yUQdY";
 let aiInstance: GoogleGenAI | null = null;
 
 const getAi = () => {
   if (!aiInstance) {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key || key === "MY_GEMINI_API_KEY") {
-      throw new Error("Gemini API key is missing. Please add GEMINI_API_KEY_NOTEBOT to the Secrets panel in AI Studio.");
-    }
-    aiInstance = new GoogleGenAI({ apiKey: key });
+    aiInstance = new GoogleGenAI({ apiKey: HARDCODED_API_KEY });
   }
   return aiInstance;
 };
 
 export const isApiKeyMissing = () => {
-  const key = process.env.GEMINI_API_KEY;
-  return !key || key === "MY_GEMINI_API_KEY";
+  return false; // Key is hardcoded
 };
 
 export const generateStudyMaterial = async (prompt: string, fileData?: { data: string, mimeType: string }) => {
@@ -90,22 +86,70 @@ export const generateDiagram = async (description: string) => {
   return null;
 };
 
-export const generateVideo = async (prompt: string) => {
+export const generateImage = async (prompt: string) => {
   const ai = getAi();
-  let operation = await ai.models.generateVideos({
-    model: 'veo-3.1-fast-generate-preview',
-    prompt: `An educational animation explaining: ${prompt}. Cinematic, high quality, clear visuals.`,
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: {
+      parts: [
+        {
+          text: `An educational illustration of: ${prompt}. High quality, clear, professional.`,
+        },
+      ],
+    },
     config: {
-      numberOfVideos: 1,
-      resolution: '720p',
-      aspectRatio: '16:9'
+      imageConfig: {
+        aspectRatio: "1:1",
+      },
+    },
+  });
+  
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`;
     }
+  }
+  return null;
+};
+
+export const generateSpeech = async (text: string) => {
+  const ai = getAi();
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-tts",
+    contents: [{ parts: [{ text: `Read this clearly and educationally: ${text}` }] }],
+    config: {
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: 'Kore' },
+        },
+      },
+    },
   });
 
-  while (!operation.done) {
-    await new Promise(resolve => setTimeout(resolve, 10000));
-    operation = await ai.operations.getVideosOperation({operation: operation});
+  const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (base64Audio) {
+    return `data:audio/mpeg;base64,${base64Audio}`;
   }
+  return null;
+};
 
-  return operation.response?.generatedVideos?.[0]?.video?.uri;
+export const chatWithGemini = async (messages: { role: 'user' | 'model', text: string }[]) => {
+  const ai = getAi();
+  const chat = ai.chats.create({
+    model: "gemini-3-flash-preview",
+    config: {
+      systemInstruction: "You are NoteCraft AI, a helpful educational assistant. Help students understand complex topics, create study plans, and explain concepts clearly.",
+    },
+  });
+
+  // Reconstruct history
+  const history = messages.slice(0, -1).map(m => ({
+    role: m.role,
+    parts: [{ text: m.text }]
+  }));
+
+  const lastMessage = messages[messages.length - 1].text;
+  const response = await chat.sendMessage({ message: lastMessage });
+  return response.text;
 };
