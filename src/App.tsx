@@ -231,7 +231,7 @@ export default function App() {
                   transition={{ delay: 0.1 }}
                   className="text-xl opacity-60 max-w-2xl mx-auto mb-12"
                 >
-                  Upload a file or paste a video URL. Our AI Tutor transforms it into 
+                  Upload a PDF, DOCX, or text file, or paste a video URL. Our AI Tutor transforms it into 
                   flashcards, presentations, and diagrams instantly.
                 </motion.p>
 
@@ -245,6 +245,7 @@ export default function App() {
                       type="file" 
                       ref={fileInputRef} 
                       className="hidden" 
+                      accept=".pdf,.docx,.txt,.png,.jpg,.jpeg"
                       onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
                     <div className="flex flex-col items-center gap-4">
@@ -253,7 +254,7 @@ export default function App() {
                       </div>
                       <div className="text-center">
                         <p className="font-bold">{file ? file.name : 'Upload Source File'}</p>
-                        <p className="text-sm opacity-50">PDF, Images, or Text files</p>
+                        <p className="text-sm opacity-50">PDF, DOCX, Images, or Text</p>
                       </div>
                     </div>
                   </div>
@@ -475,7 +476,7 @@ export default function App() {
             <div className="space-y-8 text-lg leading-relaxed opacity-80">
               <p>
                 NoteCraft is an innovative AI-powered educational platform designed to revolutionize the way students and professionals learn. 
-                By leveraging cutting-edge artificial intelligence, we transform complex source materials—whether they are long PDF documents, 
+                By leveraging cutting-edge artificial intelligence, we transform complex source materials—whether they are long PDF or DOCX documents, 
                 dense technical papers, or educational videos—into structured, interactive study kits.
               </p>
               
